@@ -1,0 +1,281 @@
+---
+title: "hw6"
+author: "Wenye Tang"
+format: html
+editor: visual
+---
+
+## Task 1 Conceptual questions
+
+-   What is the purpose of the lapply() function? What is the equivalent purrr function
+
+    -   lapply() is ued to apply a function over a list or vector and return a list. It is useful when we need to iterate over each element in a vector. The equivalent is map(). It also applies a function to each element of a vector and returns a list. 
+
+-   Use lapply() to run the code cor(numeric_matrix, method = "kendall") on my_list
+
+```{r eval=FALSE}
+# This applies the cor() function to each element x in the list
+output <- lapply(my_list, function(x) cor(x, method = "kendall"))
+```
+
+-   What are two advantages of using purrr functions instead of the BaseR apply family?
+    -   Using purrr functions will return the output according to specific needs so that it ensures the results consistency. Base R usually returns a list, so it is not as flexible. 
+    -   Purrr package makes debugging easier, while Base R will stop running and return an error when the code has small errors.
+    
+
+-   What is a side-effect function
+    -   It is a function with the purpose of producing some side effects other than returning a value. Print() is an example
+    
+-   Why can you name a variable sd in a function and not cause any issues with the sd function?
+    -   R has scoping rules that prevent such confusion. 
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Task 2 Writing R Functions
+
+```{r}
+# Write a function called getRMSE() that takes in a vector of responses and a vector of predictions and outputs the RMSE
+getRMSE <- function(y, y_hat) {
+  squared_diff <- (y - y_hat)^2
+  mean_squared_diff <- mean(squared_diff)
+  rmse <- sqrt(mean_squared_diff)
+  return(rmse)
+} 
+y <- c(3,-.5, 2, 7)
+y_hat <- c(2.5,0,2,8)
+getRMSE(y,y_hat)
+```
+
+```{r}
+# Modify the above basic function to allow missing values for the vector of responses
+getRMSEv2 <- function(y, y_hat, ...) {
+  squared_diff <- (y - y_hat)^2
+  mean_squared_diff <- mean(squared_diff, ...)
+  rmse <- sqrt(mean_squared_diff)
+  return(rmse)
+} 
+y <- c(3, -0.5, NA, 7)
+y_hat <- c(2.5, 0.0, 2, 8)
+getRMSEv2(y, y_hat, na.rm = TRUE)
+```
+
+```{r}
+# Run the following code to create some response values and predictions, and test RMSE function
+set.seed(10)
+n <- 100
+x <- runif(n)
+resp <- 3 + 10 * x + rnorm(n)
+pred <- predict(lm(resp ~ x), data.frame(x))
+getRMSEv2(y, y_hat, na.rm = TRUE)
+rmse_result <- getRMSE(resp, pred)
+print(rmse_result)
+```
+```{r}
+# Repeat after replacing two responses with missing values
+set.seed(10)
+n <- 100
+x <- runif(n)
+resp <- 3 + 10 * x + rnorm(n)
+pred <- predict(lm(resp ~ x), data.frame(x))
+resp[1] <- NA_real_
+resp[5] <- NA_real_
+# Test RMSE function without specifying how to deal with missing values
+rmse_without_na_rm <- getRMSE(resp, pred)
+print(rmse_without_na_rm)
+```
+
+```{r}
+# Test RMSE function with specifying how to deal with missing values
+rmse_with_na_rm <- getRMSEv2(resp, pred, na.rm = TRUE)
+print(rmse_with_na_rm)
+```
+
+```{r}
+# Write another function getMAE()
+getMAE <- function(y, y_hat, ...) {
+  absolute_diff <- abs(y - y_hat)
+  mae <- mean(absolute_diff, ...)
+  return(mae)
+}
+act <- c(3, -0.5, 2, 7)
+pred <- c(2.5, 0.0, 2, 8)
+# call the function
+mae_result <- getMAE(act, pred)
+print(mae_result)
+```
+
+```{r}
+# Run the following code to generate some response values and predictions, and then call the function getMAE
+set.seed(10)
+n <- 100
+x <- runif(n)
+resp <- 3 + 10 * x + rnorm(n)
+pred <- predict(lm(resp ~ x), data.frame(x))
+
+mae_result <- getMAE(resp, pred)
+print(mae_result)
+```
+
+```{r}
+# Repeat the above step after replacing two responses with missing values
+set.seed(10)
+n <- 100
+x <- runif(n)
+resp <- 3 + 10 * x + rnorm(n)
+pred <- predict(lm(resp ~ x), data.frame(x))
+resp[1] <- NA_real_
+resp[5] <- NA_real_
+mae_without_na_rm <- getMAE(resp, pred)
+print(mae_without_na_rm)
+
+```
+
+
+```{r}
+# call the function with specifying the behavior to deal with missing values
+mae_with_na_rm <- getMAE(resp, pred, na.rm = TRUE)
+print(mae_with_na_rm)
+```
+
+```{r}
+# Wrapper function to calculate either or both metrics
+getMetrics <- function(y, y_hat, return_rmse = TRUE, return_mae = TRUE, ...) {
+  # Check if both arguments are atomic numeric vectors
+  if (!is.vector(y) || !is.atomic(y) || !is.numeric(y) || 
+      !is.vector(y_hat) || !is.atomic(y_hat) || !is.numeric(y_hat)) {
+    message("Both y and y_hat must be numeric vectors.")
+    return(NULL)
+  }
+
+  result <- list()
+  
+  # Calculate and return RMSE
+  if (return_rmse) {
+    result$RMSE <- getRMSE(y, y_hat, ...)
+  }
+  
+  # Calculate and return MAE 
+  if (return_mae) {
+    result$MAE <- getMAE(y, y_hat, ...)
+  }
+  
+  # Return the result list with appropriate names
+  return(result)
+}
+# Call function
+set.seed(10)
+n <- 100
+x <- runif(n)
+resp <- 3 + 10 * x + rnorm(n)
+pred <- predict(lm(resp ~ x), data.frame(x))
+
+metrics_result <- getMetrics(resp, pred)
+print(metrics_result)
+```
+
+```{r}
+# Call the above function asking for each metric individually
+rmse_result_only <- getMetrics(resp, pred, return_rmse = TRUE, return_mae = FALSE)
+print(rmse_result_only)
+
+```
+```{r}
+# Repeat with replacing the response values with missing values
+set.seed(10)
+n <- 100
+x <- runif(n)
+resp <- 3 + 10 * x + rnorm(n)
+pred <- predict(lm(resp ~ x), data.frame(x))
+
+resp[1] <- NA_real_
+resp[5] <- NA_real_
+metrics_without_na_rm <- getMetrics(resp, pred)
+print(metrics_without_na_rm)
+```
+## Task 3 Querying an API and a Tidy-Style function
+
+
+```{r eval=FALSE}
+install.packages("httr")
+install.packages("jsonlite")
+install.packages("purrr")
+library(httr)
+library(jsonlite)
+library(purrr)
+
+api_key <- "9d5a6f5abd414395a27a00a16cdec53a"
+
+response <-  GET("https://newsapi.org/v2/everything?q=gamestop&from=2024-10-01&language=en&pageSize=100&apiKey=9d5a6f5abd414395a27a00a16cdec53a")
+
+news_data <- content(response, as = "text", encoding = "UTF-8")
+news_json <- fromJSON(news_data)
+articles <- pluck(news_json, "articles")
+article_list <- as.list(articles)
+
+class(article_list[[1]])  # This should return "list"
+
+```
+
+
+```{r eval=FALSE}
+# Write a quick function that allows the users to query this API. 
+query_news_api <- function(query, from_date, api_key) {
+  
+  url <- paste0("https://newsapi.org/v2/everything?q=", query,"&from=", from_date, 
+                &language=en&pageSize=100&apiKey=, api_key)
+  response <- GET(url)
+
+  news_data <- content(response, as = "text", encoding = "UTF-8")
+  
+  news_json <- fromJSON(news_data)
+  
+  articles <- pluck(news_json, "articles")
+  
+  }
+
+```
+
+
+```{r eval=FALSE}
+# 4. summarize the 'name' of the source for each article. (one way contingency table)
+source_names <- sapply(result_df$source, function(x) x$name)
+source_table <- table(source_names)
+print(source_table)
+```
+
+
+```{r eval=FALSE}
+# 5. Turn the publishedAt column into a data column using 'lubridate package. 
+
+install.packages("lubridate")
+install.packages("dplyr")
+library(lubridate)
+library(dplyr)
+
+result_df <- result_df %>%
+  mutate(publishedAt = ymd_hms(publishedAt))
+sorted_df <- result_df %>%
+  arrange(publishedAt)
+sorted_df <- sorted_df %>%
+  mutate(pub_diff = publishedAt - lag(publishedAt))
+new_result_df <- sorted_df
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
